@@ -194,6 +194,11 @@ async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("ការទាញយកត្រូវបានលុបចោល។", reply_markup=get_main_keyboard())
     return ConversationHandler.END
 
+async def get_photo_file_id(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    # យក File ID ពីទំហំរូបភាពធំជាងគេ
+    file_id = update.message.photo[-1].file_id
+    await update.message.reply_text(f"នេះគឺជា File ID របស់អ្នក៖\n`{file_id}`", parse_mode='Markdown')
+
 if __name__ == '__main__':
     if not TOKEN:
         print("កំហុស៖ មិនឃើញមាន TELEGRAM_BOT_TOKEN ក្នុងឯកសារ .env ទេ។")
@@ -227,6 +232,9 @@ if __name__ == '__main__':
     
     # Handler for download_btn outside conversation (just in case they click old buttons)
     app.add_handler(CallbackQueryHandler(button_callback, pattern='^download_btn$'))
+    
+    # Handler សម្រាប់ទទួលបាន File ID ពីរូបភាព
+    app.add_handler(MessageHandler(filters.PHOTO, get_photo_file_id))
     
     print("Bot កំពុងដំណើរការ...")
     app.run_polling()
