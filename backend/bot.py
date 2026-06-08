@@ -19,6 +19,7 @@ load_dotenv()
 
 # ទាញយក Token
 TOKEN = os.getenv('TELEGRAM_BOT_TOKEN')
+DONATE_QR_ID = os.getenv('DONATE_QR_FILE_ID')
 
 # កំណត់ States សម្រាប់ ConversationHandler
 WAITING_QUALITY = 1
@@ -39,6 +40,15 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         reply_markup=get_main_keyboard()
     )
     return ConversationHandler.END
+
+async def donate(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if DONATE_QR_ID:
+        await update.message.reply_photo(
+            photo=DONATE_QR_ID, 
+            caption="សូមអរគុណសម្រាប់ការគាំទ្រដល់ការអភិវឌ្ឍ Bot របស់យើង!"
+        )
+    else:
+        await update.message.reply_text("មិនមាន QR Code សម្រាប់ឧបត្ថម្ភនៅពេលនេះទេ។")
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text
@@ -228,6 +238,7 @@ if __name__ == '__main__':
     )
     
     app.add_handler(CommandHandler("start", start))
+    app.add_handler(CommandHandler("donate", donate))
     app.add_handler(conv_handler)
     
     # Handler for download_btn outside conversation (just in case they click old buttons)
