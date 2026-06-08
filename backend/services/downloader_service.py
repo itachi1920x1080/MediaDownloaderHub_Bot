@@ -53,8 +53,15 @@ def download_video(url, state=None, quality='best'):
                             state['percent'] = 100
                             state['status'] = 'finished'
                         return ('video', title, filepath)
-        except Exception:
-            pass # បើ tikwm បរាជ័យ បន្តទៅ yt-dlp
+            else:
+                # If API returned an error for a photo, we should know
+                if "/photo/" in url:
+                    raise Exception(f"TikWM API Error: {data.get('msg', 'Unknown error')}")
+        except Exception as e:
+            if "/photo/" in url:
+                # yt-dlp doesn't support photo slides, so we might as well show the real error
+                raise Exception(f"មិនអាចទាញយករូបភាពពី TikTok បានទេ៖ {str(e)}")
+            pass # បើ tikwm បរាជ័យ ហើយមិនមែន photo ទេ បន្តទៅ yt-dlp
     os.makedirs(download_folder, exist_ok=True)
     
     def my_hook(d):
