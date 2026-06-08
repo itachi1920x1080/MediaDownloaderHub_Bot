@@ -118,6 +118,16 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             
         status_msg = await query.edit_message_text(f"⏳ កំពុងផ្តើមទាញយកគុណភាព {quality}p... សូមរង់ចាំ។")
         
+        qr_msg = None
+        if DONATE_QR_ID:
+            try:
+                qr_msg = await query.message.reply_photo(
+                    photo=DONATE_QR_ID,
+                    caption="🙏 ខណៈពេលរង់ចាំ សូមជួយគាំទ្រពួកយើងតាមរយៈ QR Code នេះ!"
+                )
+            except Exception as e:
+                logger.error(f"Failed to send QR Code: {e}")
+                
         state = {'percent': 0, 'speed': '', 'status': 'downloading'}
         
         # Task សម្រាប់ Update សារ (Progress Bar)
@@ -130,7 +140,7 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     bars = int(current_percent / 10)
                     progress_bar = '█' * bars + '░' * (10 - bars)
                     speed = state['speed']
-                    text_msg = f"⏳ កំពុងទាញយកគុណភាព {quality}p...\n[{progress_bar}] {current_percent}%\nល្បឿន៖ {speed}\n\n🙏 ជួយគាំទ្រការអភិវឌ្ឍតាមរយៈ /donate (QR Code)"
+                    text_msg = f"⏳ កំពុងទាញយកគុណភាព {quality}p...\n[{progress_bar}] {current_percent}%\nល្បឿន៖ {speed}"
                     try:
                         await status_msg.edit_text(text_msg)
                         last_percent = current_percent
@@ -171,6 +181,11 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 
                 # លុបសារ "កំពុងដំណើរការ" ចោល
                 await status_msg.delete()
+                if qr_msg:
+                    try:
+                        await qr_msg.delete()
+                    except:
+                        pass
                 
                 # លុបរូបភាពចោលពីម៉ាស៊ីន
                 for path in file_data:
@@ -199,6 +214,11 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 
                 # លុបសារ "កំពុងដំណើរការ" ចោល
                 await status_msg.delete()
+                if qr_msg:
+                    try:
+                        await qr_msg.delete()
+                    except:
+                        pass
                 
                 # ៥. លុបឯកសារចេញពីម៉ាស៊ីនវិញដើម្បីសន្សំទំហំ Hard Disk
                 if os.path.exists(file_path):
@@ -212,6 +232,11 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             state['status'] = 'error'
             progress_task.cancel()
             await status_msg.edit_text(f"❌ ការទាញយកបរាជ័យ៖ {str(e)}")
+            if qr_msg:
+                try:
+                    await qr_msg.delete()
+                except:
+                    pass
             
         return ConversationHandler.END
 
