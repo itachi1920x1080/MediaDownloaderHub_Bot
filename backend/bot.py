@@ -130,7 +130,7 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     bars = int(current_percent / 10)
                     progress_bar = '█' * bars + '░' * (10 - bars)
                     speed = state['speed']
-                    text_msg = f"⏳ កំពុងទាញយកគុណភាព {quality}p...\n[{progress_bar}] {current_percent}%\nល្បឿន៖ {speed}"
+                    text_msg = f"⏳ កំពុងទាញយកគុណភាព {quality}p...\n[{progress_bar}] {current_percent}%\nល្បឿន៖ {speed}\n\n🙏 ជួយគាំទ្រការអភិវឌ្ឍតាមរយៈ /donate (QR Code)"
                     try:
                         await status_msg.edit_text(text_msg)
                         last_percent = current_percent
