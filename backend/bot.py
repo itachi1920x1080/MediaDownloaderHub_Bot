@@ -209,6 +209,15 @@ async def get_photo_file_id(update: Update, context: ContextTypes.DEFAULT_TYPE):
     file_id = update.message.photo[-1].file_id
     await update.message.reply_text(f"នេះគឺជា File ID របស់អ្នក៖\n`{file_id}`", parse_mode='Markdown')
 
+async def post_init(application):
+    # បង្ហាញបញ្ជី Commands ទៅកាន់អ្នកប្រើប្រាស់ (Menu Button)
+    # ដាក់ /donate មុនគេបង្អស់
+    await application.bot.set_my_commands([
+        ("donate", "ឧបត្ថម្ភការអភិវឌ្ឍ Bot របស់យើង"),
+        ("start", "ចាប់ផ្តើមប្រើប្រាស់ Bot"),
+        ("cancel", "បោះបង់ប្រតិបត្តិការកំពុងធ្វើ")
+    ])
+
 if __name__ == '__main__':
     if not TOKEN:
         print("កំហុស៖ មិនឃើញមាន TELEGRAM_BOT_TOKEN ក្នុងឯកសារ .env ទេ។")
@@ -217,7 +226,7 @@ if __name__ == '__main__':
     # បង្កើត Database បើមិនទាន់មាន
     init_db()
         
-    app = ApplicationBuilder().token(TOKEN).build()
+    app = ApplicationBuilder().token(TOKEN).post_init(post_init).build()
     
     # បង្កើត ConversationHandler
     conv_handler = ConversationHandler(
