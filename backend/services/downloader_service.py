@@ -101,8 +101,8 @@ def download_video(url, state=None, quality='best'):
     except Exception as e:
         error_msg = str(e)
         
-        # បើវីដេអូទាមទារការ Login ទើបយើងសាកប្រើ Chrome Cookies ជាជម្រើសទី២
-        if "login" in error_msg.lower() or "private" in error_msg.lower() or "sign in" in error_msg.lower():
+        # បើវីដេអូទាមទារការ Login ឬជា Story ទើបយើងសាកប្រើ Chrome Cookies ជាជម្រើសទី២
+        if "login" in error_msg.lower() or "private" in error_msg.lower() or "sign in" in error_msg.lower() or "story" in url.lower() or "stories" in url.lower():
             ydl_opts_cookies = ydl_opts.copy()
             ydl_opts_cookies['cookiesfrombrowser'] = ('chrome', )
             try:
