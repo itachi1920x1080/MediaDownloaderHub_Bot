@@ -35,8 +35,16 @@ def get_main_keyboard():
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.message.from_user
     logger.info(f"User {user.first_name} (ID: {user.id}) started the bot.")
+    welcome_text = (
+        "សួស្តី! ខ្ញុំជា Bot ទាញយកវីដេអូ។\n\n"
+        "បញ្ជីបញ្ជា (Commands):\n"
+        "/donate - ឧបត្ថម្ភការអភិវឌ្ឍ Bot របស់យើង\n"
+        "/start - ចាប់ផ្តើមប្រើប្រាស់ Bot\n"
+        "/cancel - បោះបង់ប្រតិបត្តិការកំពុងធ្វើ\n\n"
+        "សូមជ្រើសរើសជម្រើសខាងក្រោម៖"
+    )
     await update.message.reply_text(
-        "សួស្តី! ខ្ញុំជា Bot ទាញយកវីដេអូ។ សូមជ្រើសរើសជម្រើសខាងក្រោម៖",
+        welcome_text,
         reply_markup=get_main_keyboard()
     )
     return ConversationHandler.END
@@ -58,7 +66,14 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     logger.info(f"User {user.first_name} (ID: {user_id}) sent: {text}")
     
     if text == "ជំនួយ":
-        await update.message.reply_text("ដើម្បីទាញយកវីដេអូ សូមផ្ញើ Link (TikTok, YouTube, ផ្សេងៗ) មកកាន់ខ្ញុំ។")
+        help_text = (
+            "ដើម្បីទាញយកវីដេអូ សូមផ្ញើ Link (TikTok, YouTube, ផ្សេងៗ) មកកាន់ខ្ញុំ។\n\n"
+            "បញ្ជីបញ្ជា (Commands):\n"
+            "/donate - ឧបត្ថម្ភការអភិវឌ្ឍ Bot របស់យើង\n"
+            "/start - ចាប់ផ្តើមប្រើប្រាស់ Bot\n"
+            "/cancel - បោះបង់ការទាញយក"
+        )
+        await update.message.reply_text(help_text)
         return ConversationHandler.END
     elif text == "ទាញយកវីដេអូ":
         await update.message.reply_text("សូម Copy Link វីដេអូ ហើយ Paste វានៅទីនេះ👇")
