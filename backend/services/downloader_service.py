@@ -15,7 +15,7 @@ def download_video(url, state=None, quality='best'):
             if data.get('code') == 0:
                 video_info = data['data']
                 title = video_info.get('title', 'TikTok_Media')
-                safe_title = re.sub(r'[\\/*?:"<>|]', "", title).strip()
+                safe_title = re.sub(r'[\\/*?:"<>|]', "", title).strip()[:60].strip()
                 if not safe_title:
                     safe_title = "TikTok_Media"
                 
