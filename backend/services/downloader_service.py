@@ -1,0 +1,118 @@
+import yt_dlp
+import requests
+import os
+import re
+
+def download_video(url, state=None, quality='best'):
+    download_folder = 'downloads'
+    os.makedirs(download_folder, exist_ok=True)
+    
+    # ប្រើ tikwm API ជាជម្រើសទី ១ សម្រាប់ TikTok (ដើម្បីចាប់យក Photo Slide)
+    if "tiktok.com" in url or "vt.tiktok.com" in url:
+        try:
+            response = requests.post('https://www.tikwm.com/api/', data={'url': url})
+            data = response.json()
+            if data.get('code') == 0:
+                video_info = data['data']
+                title = video_info.get('title', 'TikTok_Media')
+                safe_title = re.sub(r'[\\/*?:"<>|]', "", title).strip()
+                if not safe_title:
+                    safe_title = "TikTok_Media"
+                
+                # ពិនិត្យមើលថាវាជាវីដេអូ ឬរូបភាព (Photo Slide)
+                if 'images' in video_info and isinstance(video_info['images'], list):
+                    image_paths = []
+                    for idx, img_url in enumerate(video_info['images']):
+                        img_path = f"{download_folder}/{safe_title}_{idx}.jpeg"
+                        img_resp = requests.get(img_url)
+                        if img_resp.status_code == 200:
+                            with open(img_path, 'wb') as f:
+                                f.write(img_resp.content)
+                            image_paths.append(img_path)
+                    
+                    if state is not None:
+                        state['percent'] = 100
+                        state['status'] = 'finished'
+                    return ('images', title, image_paths)
+                
+                play_url = video_info.get('play')
+                if play_url:
+                    filepath = f"{download_folder}/{safe_title}.mp4"
+                    video_resp = requests.get(play_url, stream=True)
+                    if video_resp.status_code == 200:
+                        total_size = int(video_resp.headers.get('content-length', 0))
+                        downloaded_size = 0
+                        with open(filepath, 'wb') as f:
+                            for chunk in video_resp.iter_content(chunk_size=1024*1024):
+                                if chunk:
+                                    f.write(chunk)
+                                    downloaded_size += len(chunk)
+                                    if state is not None and total_size > 0:
+                                        state['percent'] = (downloaded_size / total_size) * 100
+                        if state is not None:
+                            state['percent'] = 100
+                            state['status'] = 'finished'
+                        return ('video', title, filepath)
+        except Exception:
+            pass # បើ tikwm បរាជ័យ បន្តទៅ yt-dlp
+    os.makedirs(download_folder, exist_ok=True)
+    
+    def my_hook(d):
+        if state is not None:
+            if d['status'] == 'downloading':
+                downloaded = d.get('downloaded_bytes', 0)
+                total = d.get('total_bytes') or d.get('total_bytes_estimate', 0)
+                if total > 0:
+                    state['percent'] = (downloaded / total) * 100
+                
+                # Clean ANSI escape sequences from speed string
+                speed_str = d.get('_speed_str', '')
+                if speed_str:
+                    speed_str = re.sub(r'\x1b\[[0-9;]*[mG]', '', speed_str)
+                    state['speed'] = speed_str.strip()
+            elif d['status'] == 'finished':
+                state['percent'] = 100
+                state['status'] = 'finished'
+
+    # បង្ខំឱ្យវាទាញយកជា mp4 ព្រោះ Telegram មិនគាំទ្រ webm ឱ្យ play ផ្ទាល់ទេ
+    format_str = 'best[ext=mp4]/best'
+    if quality != 'best':
+        format_str = f'bestvideo[height<={quality}][ext=mp4]+bestaudio[ext=m4a]/best[height<={quality}][ext=mp4]/best[ext=mp4]/best'
+
+    ydl_opts = {
+        'format': format_str,
+        'outtmpl': f'{download_folder}/%(title)s.%(ext)s',
+        'progress_hooks': [my_hook],
+        'quiet': True,
+        'noprogress': True
+    }
+    try:
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            info = ydl.extract_info(url, download=True)
+            filename = ydl.prepare_filename(info)
+            return ('video', info.get('title', 'Unknown Title'), filename)
+    except Exception as e:
+        error_msg = str(e)
+        
+        # បើវីដេអូទាមទារការ Login ទើបយើងសាកប្រើ Chrome Cookies ជាជម្រើសទី២
+        if "login" in error_msg.lower() or "private" in error_msg.lower() or "sign in" in error_msg.lower():
+            ydl_opts_cookies = ydl_opts.copy()
+            ydl_opts_cookies['cookiesfrombrowser'] = ('chrome', )
+            try:
+                with yt_dlp.YoutubeDL(ydl_opts_cookies) as ydl_cookies:
+                    info = ydl_cookies.extract_info(url, download=True)
+                    filename = ydl_cookies.prepare_filename(info)
+                    return ('video', info.get('title', 'Unknown Title'), filename)
+            except Exception as e_cookies:
+                error_msg = str(e_cookies) # ប្តូរយក Error របស់ការប្រើ Cookies វិញ
+        # សម្អាត ANSI Color codes (ឧទាហរណ៍ [0;31m) ចេញពី Error របស់ yt-dlp
+        error_msg = re.sub(r'\x1b\[[0-9;]*[mGK]', '', error_msg)
+        
+        # ប្តូររចនាបថ Error ឱ្យងាយយល់ ប្រសិនបើវាទាមទារការ Login (ឧទាហរណ៍ Facebook Stories)
+        if "login.php" in error_msg or "Private video" in error_msg:
+            error_msg = "វីដេអូនេះត្រូវបានដាក់ជាឯកជន (Private) ឬទាមទារការចូលគណនី (Login)។ Bot មិនអាចទាញយកបានទេ។"
+        elif "Could not copy Chrome cookie database" in error_msg:
+            error_msg = "សូមបិទកម្មវិធី Chrome ទាំងស្រុងសិនមុននឹងទាញយក! (ត្រូវបិទទាំង Tab ទាំងអស់ និងកុំឱ្យមានដំណើរការលាក់ខ្លួនក្នុងកុំព្យូទ័រ) ព្រោះ Chrome កំពុងចាក់សោរឯកសារទិន្នន័យ។"
+            
+        # បោះកំហុសចេញដើម្បីឱ្យ route អាចចាប់បាន
+        raise Exception(f"ការទាញយកមានបញ្ហា: {error_msg}")

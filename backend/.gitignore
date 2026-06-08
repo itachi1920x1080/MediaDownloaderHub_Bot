@@ -1,0 +1,7 @@
+.env
+cookies.txt
+__pycache__/
+downloads/
+myenv/
+*.sqlite3
+history.db
