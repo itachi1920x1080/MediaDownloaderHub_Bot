@@ -50,11 +50,18 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     return ConversationHandler.END
 
 async def donate(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if DONATE_QR_ID:
-        await update.message.reply_photo(
-            photo=DONATE_QR_ID, 
-            caption="សូមអរគុណសម្រាប់ការគាំទ្រដល់ការអភិវឌ្ឍ Bot របស់យើង!"
-        )
+    # Remove any accidental quotes from the string just in case
+    clean_qr_id = DONATE_QR_ID.strip('\'"') if DONATE_QR_ID else None
+    
+    if clean_qr_id:
+        try:
+            await update.message.reply_photo(
+                photo=clean_qr_id, 
+                caption="សូមអរគុណសម្រាប់ការគាំទ្រដល់ការអភិវឌ្ឍ Bot របស់យើង!"
+            )
+        except Exception as e:
+            logger.error(f"Error sending donate QR: {e}")
+            await update.message.reply_text("មានបញ្ហាក្នុងការបង្ហាញ QR Code ឧបត្ថម្ភ។ សូមពិនិត្យមើល File ID នៅក្នុង .env ម្តងទៀត។")
     else:
         await update.message.reply_text("មិនមាន QR Code សម្រាប់ឧបត្ថម្ភនៅពេលនេះទេ។")
 
@@ -281,6 +288,7 @@ if __name__ == '__main__':
         fallbacks=[
             CommandHandler('start', start),
             CommandHandler('cancel', cancel),
+            CommandHandler('donate', donate),
             CallbackQueryHandler(button_callback, pattern='^download_btn$') # in case they click it anytime
         ],
         per_message=False # បិទ Warning របស់ PTB កុំឱ្យរំខាន
