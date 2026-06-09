@@ -5,6 +5,8 @@ const url = ref('')
 const loading = ref(false)
 const message = ref('')
 const error = ref(false)
+const files = ref([])
+const apiUrl = ref('')
 
 const handleDownload = async () => {
   if (!url.value) {
@@ -16,12 +18,14 @@ const handleDownload = async () => {
   loading.value = true
   message.value = ''
   error.value = false
+  files.value = []
 
   try {
     let API_URL = import.meta.env.VITE_APP_API_URL || ''
     if (API_URL.endsWith('/')) {
       API_URL = API_URL.slice(0, -1)
     }
+    apiUrl.value = API_URL
     const response = await fetch(`${API_URL}/api/downloader`, {
       method: 'POST',
       headers: {
@@ -37,6 +41,9 @@ const handleDownload = async () => {
     }
 
     message.value = data.message
+    if (data.files && data.files.length > 0) {
+      files.value = data.files
+    }
     error.value = false
     url.value = '' // clear on success
   } catch (err) {
@@ -73,7 +80,19 @@ const handleDownload = async () => {
 
     <Transition name="fade">
       <div v-if="message" :class="['status-message', error ? 'error-msg' : 'success-msg']">
-        {{ message }}
+        <p>{{ message }}</p>
+        
+        <div v-if="files.length > 0" class="download-links">
+          <a 
+            v-for="file in files" 
+            :key="file"
+            :href="`${apiUrl}/api/download_file/${file}`"
+            target="_blank"
+            class="save-btn"
+          >
+            ⬇️ រក្សាទុក (Save)
+          </a>
+        </div>
       </div>
     </Transition>
   </div>
@@ -171,6 +190,31 @@ const handleDownload = async () => {
   background: rgba(16, 185, 129, 0.1);
   color: #6ee7b7;
   border: 1px solid rgba(16, 185, 129, 0.2);
+}
+
+.download-links {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-top: 1rem;
+}
+
+.save-btn {
+  display: inline-block;
+  padding: 0.75rem 1.5rem;
+  background: rgba(16, 185, 129, 0.2);
+  color: #a7f3d0;
+  text-decoration: none;
+  border-radius: 8px;
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  font-weight: 600;
+  transition: all 0.2s ease;
+}
+
+.save-btn:hover {
+  background: rgba(16, 185, 129, 0.3);
+  color: #fff;
+  transform: translateY(-2px);
 }
 
 /* Transitions */
