@@ -1,4 +1,5 @@
 from flask import Blueprint, jsonify, request
+import traceback
 from services.downloader_service import download_video
 
 downloader_bp = Blueprint('downloader', __name__)
@@ -6,6 +7,7 @@ downloader_bp = Blueprint('downloader', __name__)
 def handle_download():
     data = request.json
     url = data.get('url')
+    print(f"Received URL: {url}")
     
     if not url:
         return jsonify({'error': 'URL is required'}), 400
@@ -14,6 +16,8 @@ def handle_download():
         title, file_path = download_video(url)
         return jsonify({"status": "success", "message": f"ទាញយក {title} បានជោគជ័យ!"})
     except Exception as e:
+        print("--- ERROR OCCURRED ---")
+        traceback.print_exc()
         error_msg = str(e)
         # ពិនិត្យមើលថាតើវាជាកំហុសទាក់ទងនឹងការ Login ឬទេ
         if "Log in for access" in error_msg:
