@@ -86,7 +86,7 @@ const handleDownload = async () => {
           <a 
             v-for="file in files" 
             :key="file"
-            :href="`${apiUrl}/api/download_file/${file}`"
+            :href="`${apiUrl}/api/download_file/${encodeURIComponent(file)}`"
             target="_blank"
             class="save-btn"
           >
