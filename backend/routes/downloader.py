@@ -13,7 +13,7 @@ def handle_download():
         return jsonify({'error': 'URL is required'}), 400
     
     try:
-        title, file_path = download_video(url)
+        media_type, title, file_path = download_video(url)
         return jsonify({"status": "success", "message": f"ទាញយក {title} បានជោគជ័យ!"})
     except Exception as e:
         print("--- ERROR OCCURRED ---")
