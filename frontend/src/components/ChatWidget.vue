@@ -33,7 +33,8 @@ const sendMessage = async () => {
   scrollToBottom();
 
   try {
-    const response = await fetch('https://media-downloader-hub-bot-k75t.vercel.app/chat/', {
+    const apiUrl = import.meta.env.VITE_API_URL || 'https://media-downloader-hub-bot-m42q.vercel.app';
+    const response = await fetch(`${apiUrl}/chat/`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
