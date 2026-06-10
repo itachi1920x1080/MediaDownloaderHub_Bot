@@ -1,5 +1,6 @@
 <script setup>
 import DownloaderForm from './components/DownloaderForm.vue'
+import ChatWidget from './components/ChatWidget.vue'
 </script>
 
 <template>
@@ -16,6 +17,8 @@ import DownloaderForm from './components/DownloaderForm.vue'
     <footer class="footer text-center">
       <p>&copy; 2026 Media Downloader Hub</p>
     </footer>
+
+    <ChatWidget />
   </div>
 </template>
 
