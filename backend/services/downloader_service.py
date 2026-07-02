@@ -88,10 +88,12 @@ def download_video(url, state=None, quality='best'):
 
     ydl_opts = {
         'format': format_str,
-        'outtmpl': f'{download_folder}/%(title)s.%(ext)s',
+        # Truncate title to 80 chars to avoid Windows [Errno 22] Invalid argument / max path length errors
+        'outtmpl': f'{download_folder}/%(title).80s.%(ext)s',
         'progress_hooks': [my_hook],
         'quiet': True,
-        'noprogress': True
+        'noprogress': True,
+        'windowsfilenames': True # Ensures strict Windows filename compliance
     }
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
@@ -109,30 +111,42 @@ def download_video(url, state=None, quality='best'):
     except Exception as e:
         error_msg = str(e)
         
-        # បើវីដេអូទាមទារការ Login ឬជា Story ទើបយើងសាកប្រើ Chrome Cookies ជាជម្រើសទី២
-        if "login" in error_msg.lower() or "private" in error_msg.lower() or "sign in" in error_msg.lower() or "story" in url.lower() or "stories" in url.lower():
-            ydl_opts_cookies = ydl_opts.copy()
-            ydl_opts_cookies['cookiesfrombrowser'] = ('chrome', )
-            try:
-                with yt_dlp.YoutubeDL(ydl_opts_cookies) as ydl_cookies:
-                    info = ydl_cookies.extract_info(url, download=True)
-                    if 'requested_downloads' in info and len(info['requested_downloads']) > 0:
-                        filename = info['requested_downloads'][0]['filepath']
-                    else:
-                        filename = ydl_cookies.prepare_filename(info)
-                        if not os.path.exists(filename) and os.path.exists(filename.rsplit('.', 1)[0] + '.mp4'):
-                            filename = filename.rsplit('.', 1)[0] + '.mp4'
-                    return ('video', info.get('title', 'Unknown Title'), filename)
-            except Exception as e_cookies:
-                error_msg = str(e_cookies) # ប្តូរយក Error របស់ការប្រើ Cookies វិញ
-        # សម្អាត ANSI Color codes (ឧទាហរណ៍ [0;31m) ចេញពី Error របស់ yt-dlp
-        error_msg = re.sub(r'\x1b\[[0-9;]*[mGK]', '', error_msg)
+        # បើវីដេអូទាមទារការ Login ឬជា Story/Reel ឬមកពី Facebook ទើបយើងសាកប្រើ Chrome Cookies ជាជម្រើសទី២
+        if "login" in error_msg.lower() or "private" in error_msg.lower() or "sign in" in error_msg.lower() or any(x in url.lower() for x in ["story", "stories", "reel", "facebook.com", "fb.watch"]):
+            browsers_to_try = ['chrome', 'edge', 'firefox', 'brave', 'opera']
+            last_error = error_msg
+            
+            for browser in browsers_to_try:
+                ydl_opts_cookies = ydl_opts.copy()
+                ydl_opts_cookies['cookiesfrombrowser'] = (browser, )
+                try:
+                    with yt_dlp.YoutubeDL(ydl_opts_cookies) as ydl_cookies:
+                        info = ydl_cookies.extract_info(url, download=True)
+                        if 'requested_downloads' in info and len(info['requested_downloads']) > 0:
+                            filename = info['requested_downloads'][0]['filepath']
+                        else:
+                            filename = ydl_cookies.prepare_filename(info)
+                            if not os.path.exists(filename) and os.path.exists(filename.rsplit('.', 1)[0] + '.mp4'):
+                                filename = filename.rsplit('.', 1)[0] + '.mp4'
+                        return ('video', info.get('title', 'Unknown Title'), filename)
+                except Exception as e_cookies:
+                    last_error = str(e_cookies)
+                    # ប្រសិនបើមានបញ្ហា (ឧទាហរណ៍ មិនមាន Browser នេះ ឬ DPAPI lock) យើងនឹងសាកល្បង Browser បន្ទាប់ទៀត
+                    continue
+            
+            # បើសាកអស់ Browser ហើយនៅតែមិនបាន
+            error_msg = re.sub(r'\x1b\[[0-9;]*[mGK]', '', last_error)
+        else:
+            # សម្អាត ANSI Color codes (ឧទាហរណ៍ [0;31m) ចេញពី Error របស់ yt-dlp សម្រាប់ Error ធម្មតា
+            error_msg = re.sub(r'\x1b\[[0-9;]*[mGK]', '', error_msg)
         
-        # ប្តូររចនាបថ Error ឱ្យងាយយល់ ប្រសិនបើវាទាមទារការ Login (ឧទាហរណ៍ Facebook Stories)
+        # ប្តូររចនាបថ Error ឱ្យងាយយល់
         if "login.php" in error_msg or "Private video" in error_msg:
             error_msg = "វីដេអូនេះត្រូវបានដាក់ជាឯកជន (Private) ឬទាមទារការចូលគណនី (Login)។ Bot មិនអាចទាញយកបានទេ។"
-        elif "Could not copy Chrome cookie database" in error_msg:
-            error_msg = "សូមបិទកម្មវិធី Chrome ទាំងស្រុងសិនមុននឹងទាញយក! (ត្រូវបិទទាំង Tab ទាំងអស់ និងកុំឱ្យមានដំណើរការលាក់ខ្លួនក្នុងកុំព្យូទ័រ) ព្រោះ Chrome កំពុងចាក់សោរឯកសារទិន្នន័យ។"
+        elif "Could not copy Chrome cookie database" in error_msg or "database is locked" in error_msg:
+            error_msg = "សូមបិទកម្មវិធី Web Browser (Chrome, Edge...) ទាំងស្រុងសិន! ព្រោះ Browser កំពុងចាក់សោរឯកសារទិន្នន័យ (Cookies)។"
+        elif "Failed to decrypt with DPAPI" in error_msg:
+            error_msg = "Google Chrome/Edge ជំនាន់ថ្មីបានដាក់ប្រព័ន្ធសុវត្ថិភាពខ្ពស់ មិនឱ្យ Bot អាន Cookies ដោយស្វ័យប្រវត្តិបានទេ។ ដំណោះស្រាយ៖ សូមប្រើកម្មវិធី Firefox ឬដំឡើង Extension 'Get cookies.txt' ដើម្បីយកឯកសារ cookies មកប្រើ!"
             
         # បោះកំហុសចេញដើម្បីឱ្យ route អាចចាប់បាន
         raise Exception(f"ការទាញយកមានបញ្ហា: {error_msg}")
