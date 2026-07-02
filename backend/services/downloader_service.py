@@ -96,7 +96,15 @@ def download_video(url, state=None, quality='best'):
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(url, download=True)
-            filename = ydl.prepare_filename(info)
+            # Use requested_downloads to get the actual final filepath after any merging/converting (e.g. to mp4)
+            if 'requested_downloads' in info and len(info['requested_downloads']) > 0:
+                filename = info['requested_downloads'][0]['filepath']
+            else:
+                filename = ydl.prepare_filename(info)
+                # In case yt-dlp converted it to mp4 but prepare_filename didn't reflect it
+                if not os.path.exists(filename) and os.path.exists(filename.rsplit('.', 1)[0] + '.mp4'):
+                    filename = filename.rsplit('.', 1)[0] + '.mp4'
+                    
             return ('video', info.get('title', 'Unknown Title'), filename)
     except Exception as e:
         error_msg = str(e)
@@ -108,7 +116,12 @@ def download_video(url, state=None, quality='best'):
             try:
                 with yt_dlp.YoutubeDL(ydl_opts_cookies) as ydl_cookies:
                     info = ydl_cookies.extract_info(url, download=True)
-                    filename = ydl_cookies.prepare_filename(info)
+                    if 'requested_downloads' in info and len(info['requested_downloads']) > 0:
+                        filename = info['requested_downloads'][0]['filepath']
+                    else:
+                        filename = ydl_cookies.prepare_filename(info)
+                        if not os.path.exists(filename) and os.path.exists(filename.rsplit('.', 1)[0] + '.mp4'):
+                            filename = filename.rsplit('.', 1)[0] + '.mp4'
                     return ('video', info.get('title', 'Unknown Title'), filename)
             except Exception as e_cookies:
                 error_msg = str(e_cookies) # ប្តូរយក Error របស់ការប្រើ Cookies វិញ
