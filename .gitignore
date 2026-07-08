@@ -23,3 +23,6 @@ history.db
 # IDEs
 .idea/
 *.swp
+
+# Downloaded Media
+downloads/

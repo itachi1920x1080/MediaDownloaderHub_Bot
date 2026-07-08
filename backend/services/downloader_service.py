@@ -3,12 +3,12 @@ import requests
 import os
 import re
 
-def download_video(url, state=None, quality='best'):
+def download_video(url, state=None, quality='best', format_choice='mp4', is_playlist=False):
     download_folder = 'downloads'
     os.makedirs(download_folder, exist_ok=True)
     
-    # ប្រើ tikwm API ជាជម្រើសទី ១ សម្រាប់ TikTok (ដើម្បីចាប់យក Photo Slide)
-    if "tiktok.com" in url or "vt.tiktok.com" in url:
+    # Use tikwm API for TikTok (to catch Photo Slides), but only for single videos and mp4 format
+    if ("tiktok.com" in url or "vt.tiktok.com" in url) and not is_playlist and format_choice == 'mp4':
         try:
             response = requests.post('https://www.tikwm.com/api/', data={'url': url})
             data = response.json()
@@ -19,7 +19,7 @@ def download_video(url, state=None, quality='best'):
                 if not safe_title:
                     safe_title = "TikTok_Media"
                 
-                # ពិនិត្យមើលថាវាជាវីដេអូ ឬរូបភាព (Photo Slide)
+                # Check for images (Photo Slide)
                 if 'images' in video_info and isinstance(video_info['images'], list):
                     image_paths = []
                     for idx, img_url in enumerate(video_info['images']):
@@ -54,14 +54,13 @@ def download_video(url, state=None, quality='best'):
                             state['status'] = 'finished'
                         return ('video', title, filepath)
             else:
-                # If API returned an error for a photo, we should know
                 if "/photo/" in url:
                     raise Exception(f"TikWM API Error: {data.get('msg', 'Unknown error')}")
         except Exception as e:
             if "/photo/" in url:
-                # yt-dlp doesn't support photo slides, so we might as well show the real error
-                raise Exception(f"មិនអាចទាញយករូបភាពពី TikTok បានទេ៖ {str(e)}")
-            pass # បើ tikwm បរាជ័យ ហើយមិនមែន photo ទេ បន្តទៅ yt-dlp
+                raise Exception(f"Cannot download TikTok photos: {str(e)}")
+            pass # Fallback to yt-dlp if tikwm fails
+            
     os.makedirs(download_folder, exist_ok=True)
     
     def my_hook(d):
@@ -72,46 +71,75 @@ def download_video(url, state=None, quality='best'):
                 if total > 0:
                     state['percent'] = (downloaded / total) * 100
                 
-                # Clean ANSI escape sequences from speed string
                 speed_str = d.get('_speed_str', '')
                 if speed_str:
                     speed_str = re.sub(r'\x1b\[[0-9;]*[mG]', '', speed_str)
                     state['speed'] = speed_str.strip()
             elif d['status'] == 'finished':
-                state['percent'] = 100
-                state['status'] = 'finished'
-
-    # បង្ខំឱ្យវាទាញយកជា mp4 ព្រោះ Telegram មិនគាំទ្រ webm ឱ្យ play ផ្ទាល់ទេ
-    format_str = 'best[ext=mp4]/best'
-    if quality != 'best':
-        format_str = f'bestvideo[height<={quality}][ext=mp4]+bestaudio[ext=m4a]/best[height<={quality}][ext=mp4]/best[ext=mp4]/best'
+                if state.get('percent', 0) < 100:
+                     # It might be downloading the next item in a playlist or postprocessing
+                     state['speed'] = 'Processing...'
 
     ydl_opts = {
-        'format': format_str,
-        # Truncate title to 80 chars to avoid Windows [Errno 22] Invalid argument / max path length errors
         'outtmpl': f'{download_folder}/%(title).80s.%(ext)s',
         'progress_hooks': [my_hook],
         'quiet': True,
         'noprogress': True,
-        'windowsfilenames': True # Ensures strict Windows filename compliance
+        'windowsfilenames': True,
+        'noplaylist': not is_playlist
     }
+
+    if format_choice == 'mp3':
+        ydl_opts['format'] = 'bestaudio/best'
+        ydl_opts['postprocessors'] = [{
+            'key': 'FFmpegExtractAudio',
+            'preferredcodec': 'mp3',
+            'preferredquality': '192',
+        }]
+    else:
+        format_str = 'best[ext=mp4]/best'
+        if quality != 'best':
+            format_str = f'bestvideo[height<={quality}][ext=mp4]+bestaudio[ext=m4a]/best[height<={quality}][ext=mp4]/best[ext=mp4]/best'
+        ydl_opts['format'] = format_str
+
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(url, download=True)
-            # Use requested_downloads to get the actual final filepath after any merging/converting (e.g. to mp4)
-            if 'requested_downloads' in info and len(info['requested_downloads']) > 0:
-                filename = info['requested_downloads'][0]['filepath']
+            
+            if 'entries' in info:
+                # It's a playlist
+                title = info.get('title', 'Playlist')
+                downloaded_files = []
+                for entry in info['entries']:
+                    if entry:
+                        expected_ext = 'mp3' if format_choice == 'mp3' else 'mp4'
+                        base_filename = ydl.prepare_filename(entry).rsplit('.', 1)[0]
+                        final_filename = f"{base_filename}.{expected_ext}"
+                        if os.path.exists(final_filename):
+                            downloaded_files.append(final_filename)
+                        else:
+                            # In case it didn't convert
+                            downloaded_files.append(ydl.prepare_filename(entry))
+                            
+                return ('playlist', title, downloaded_files)
             else:
-                filename = ydl.prepare_filename(info)
-                # In case yt-dlp converted it to mp4 but prepare_filename didn't reflect it
-                if not os.path.exists(filename) and os.path.exists(filename.rsplit('.', 1)[0] + '.mp4'):
-                    filename = filename.rsplit('.', 1)[0] + '.mp4'
+                title = info.get('title', 'Unknown Title')
+                if 'requested_downloads' in info and len(info['requested_downloads']) > 0:
+                    filename = info['requested_downloads'][0]['filepath']
+                else:
+                    filename = ydl.prepare_filename(info)
                     
-            return ('video', info.get('title', 'Unknown Title'), filename)
+                    expected_ext = 'mp3' if format_choice == 'mp3' else 'mp4'
+                    if not filename.endswith(f'.{expected_ext}'):
+                        converted = filename.rsplit('.', 1)[0] + f'.{expected_ext}'
+                        if os.path.exists(converted):
+                            filename = converted
+                            
+                return ('audio' if format_choice == 'mp3' else 'video', title, filename)
     except Exception as e:
         error_msg = str(e)
         
-        # បើវីដេអូទាមទារការ Login ឬជា Story/Reel ឬមកពី Facebook ទើបយើងសាកប្រើ Chrome Cookies ជាជម្រើសទី២
+        # Retry with browser cookies for restricted content
         if "login" in error_msg.lower() or "private" in error_msg.lower() or "sign in" in error_msg.lower() or any(x in url.lower() for x in ["story", "stories", "reel", "facebook.com", "fb.watch"]):
             browsers_to_try = ['chrome', 'edge', 'firefox', 'brave', 'opera']
             last_error = error_msg
@@ -122,31 +150,45 @@ def download_video(url, state=None, quality='best'):
                 try:
                     with yt_dlp.YoutubeDL(ydl_opts_cookies) as ydl_cookies:
                         info = ydl_cookies.extract_info(url, download=True)
-                        if 'requested_downloads' in info and len(info['requested_downloads']) > 0:
-                            filename = info['requested_downloads'][0]['filepath']
+                        
+                        if 'entries' in info:
+                            title = info.get('title', 'Playlist')
+                            downloaded_files = []
+                            for entry in info['entries']:
+                                if entry:
+                                    expected_ext = 'mp3' if format_choice == 'mp3' else 'mp4'
+                                    base_filename = ydl_cookies.prepare_filename(entry).rsplit('.', 1)[0]
+                                    final_filename = f"{base_filename}.{expected_ext}"
+                                    if os.path.exists(final_filename):
+                                        downloaded_files.append(final_filename)
+                                    else:
+                                        downloaded_files.append(ydl_cookies.prepare_filename(entry))
+                            return ('playlist', title, downloaded_files)
                         else:
-                            filename = ydl_cookies.prepare_filename(info)
-                            if not os.path.exists(filename) and os.path.exists(filename.rsplit('.', 1)[0] + '.mp4'):
-                                filename = filename.rsplit('.', 1)[0] + '.mp4'
-                        return ('video', info.get('title', 'Unknown Title'), filename)
+                            title = info.get('title', 'Unknown Title')
+                            if 'requested_downloads' in info and len(info['requested_downloads']) > 0:
+                                filename = info['requested_downloads'][0]['filepath']
+                            else:
+                                filename = ydl_cookies.prepare_filename(info)
+                                expected_ext = 'mp3' if format_choice == 'mp3' else 'mp4'
+                                if not filename.endswith(f'.{expected_ext}'):
+                                    converted = filename.rsplit('.', 1)[0] + f'.{expected_ext}'
+                                    if os.path.exists(converted):
+                                        filename = converted
+                            return ('audio' if format_choice == 'mp3' else 'video', title, filename)
                 except Exception as e_cookies:
                     last_error = str(e_cookies)
-                    # ប្រសិនបើមានបញ្ហា (ឧទាហរណ៍ មិនមាន Browser នេះ ឬ DPAPI lock) យើងនឹងសាកល្បង Browser បន្ទាប់ទៀត
                     continue
             
-            # បើសាកអស់ Browser ហើយនៅតែមិនបាន
             error_msg = re.sub(r'\x1b\[[0-9;]*[mGK]', '', last_error)
         else:
-            # សម្អាត ANSI Color codes (ឧទាហរណ៍ [0;31m) ចេញពី Error របស់ yt-dlp សម្រាប់ Error ធម្មតា
             error_msg = re.sub(r'\x1b\[[0-9;]*[mGK]', '', error_msg)
         
-        # ប្តូររចនាបថ Error ឱ្យងាយយល់
         if "login.php" in error_msg or "Private video" in error_msg:
-            error_msg = "វីដេអូនេះត្រូវបានដាក់ជាឯកជន (Private) ឬទាមទារការចូលគណនី (Login)។ Bot មិនអាចទាញយកបានទេ។"
+            error_msg = "Video is private or requires login."
         elif "Could not copy Chrome cookie database" in error_msg or "database is locked" in error_msg:
-            error_msg = "សូមបិទកម្មវិធី Web Browser (Chrome, Edge...) ទាំងស្រុងសិន! ព្រោះ Browser កំពុងចាក់សោរឯកសារទិន្នន័យ (Cookies)។"
+            error_msg = "Please close your browser first! Browser is locking the cookies."
         elif "Failed to decrypt with DPAPI" in error_msg:
-            error_msg = "Google Chrome/Edge ជំនាន់ថ្មីបានដាក់ប្រព័ន្ធសុវត្ថិភាពខ្ពស់ មិនឱ្យ Bot អាន Cookies ដោយស្វ័យប្រវត្តិបានទេ។ ដំណោះស្រាយ៖ សូមប្រើកម្មវិធី Firefox ឬដំឡើង Extension 'Get cookies.txt' ដើម្បីយកឯកសារ cookies មកប្រើ!"
+            error_msg = "Browser blocked cookie access. Please use Firefox or a cookies.txt extension."
             
-        # បោះកំហុសចេញដើម្បីឱ្យ route អាចចាប់បាន
-        raise Exception(f"ការទាញយកមានបញ្ហា: {error_msg}")
+        raise Exception(f"Download failed: {error_msg}")

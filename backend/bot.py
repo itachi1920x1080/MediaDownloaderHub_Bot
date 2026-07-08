@@ -273,7 +273,11 @@ if __name__ == '__main__':
     # បង្កើត Database បើមិនទាន់មាន
     init_db()
         
-    app = ApplicationBuilder().token(TOKEN).post_init(post_init).build()
+    # Force HTTP/1.1 to fix Telegram Bad Gateway (502) errors
+    from telegram.request import HTTPXRequest
+    t_request = HTTPXRequest(http_version="1.1")
+    
+    app = ApplicationBuilder().token(TOKEN).request(t_request).post_init(post_init).build()
     
     # បង្កើត ConversationHandler
     conv_handler = ConversationHandler(
