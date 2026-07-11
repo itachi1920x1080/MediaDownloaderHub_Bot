@@ -3,6 +3,7 @@ from pydantic import BaseModel
 
 from pydantic import BaseModel
 from google import genai
+from google.genai import types
 import os 
 from dotenv import load_dotenv
 import urllib
@@ -62,9 +63,10 @@ async def chat(data: ChatRequest):
         response = user.models.generate_content(
             model=model,
             contents=data.message,
-            config={
-                "system_instruction": BOT_context,
-            }
+            config=types.GenerateContentConfig(
+                system_instruction=BOT_context,
+                temperature=0.7
+            )
         )
         return {"reply": response.text}
     except Exception as e:
