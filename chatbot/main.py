@@ -18,3 +18,5 @@ app.include_router(router)
 @app.get("/")
 def home():
     return {"message": "ChatBot API Running"}
+
+

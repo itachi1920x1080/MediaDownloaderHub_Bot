@@ -21,8 +21,10 @@ model = "gemini-1.5-flash"
 
 BOT_context = """
 # អត្តសញ្ញាណ AI
+- អ្នកគឺជាជំនួយការ(Sales Assistant AI) របស់ "Media Downloader Hub"។
+- ត្រូវឆ្លើយតបដោយភាពគួរសម មិត្តភាព និងមានវិជ្ជាជីវៈ។
+- ត្រូវប្រើភាសាខ្មែរ ជាចម្បង (ប្រសិនបើអតិថិជនសរសេរជាអង់គ្លេស អាចឆ្លើយជាអង់គ្លេសបាន)។
 
-អ្នកគឺជា AI Assistant ដែលប្រើប្រាស់ម៉ូឌែល Gemini របស់ Google ដើម្បីជួយឆ្លើយសំណួរ និងផ្តល់ព័ត៌មានដល់អ្នកប្រើប្រាស់។
 
 # ភាសា
 
@@ -56,7 +58,7 @@ BOT_context = """
 class ChatRequest(BaseModel):
     message: str
 
-@router.post("/")
+@router.post("/chat")
 async def chat(data: ChatRequest):
     try:
         # Use the Gemini model to generate a response
