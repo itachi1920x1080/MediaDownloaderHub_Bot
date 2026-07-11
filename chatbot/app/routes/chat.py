@@ -15,7 +15,7 @@ load_dotenv()
 
 router = APIRouter()
 user = genai.Client(api_key = os.getenv("GOOGLE_API_KEY"))
-model = "gemini-2.0-flash"
+model = "gemini-1.5-flash"
 
 
 BOT_context = """
