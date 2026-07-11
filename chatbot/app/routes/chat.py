@@ -1,6 +1,6 @@
 from fastapi import APIRouter,FastAPI,HTTPException
 from pydantic import BaseModel
-from app.services.openai_service import get_chat_response
+
 from pydantic import BaseModel
 from google import genai
 import os 
