@@ -19,7 +19,13 @@ CORS(app, resources={r"/api/*": {"origins": "*"}}, supports_credentials=True)
 app.json.ensure_ascii = False
 
 # Database configuration
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///webapp.db'
+# Use environment variable for external DB (Postgres/MySQL) or fallback to local SQLite
+db_url = os.environ.get('DATABASE_URL', 'sqlite:///webapp.db')
+# Handle Postgres dialect issue if Heroku/Koyeb format is used
+if db_url.startswith("postgres://"):
+    db_url = db_url.replace("postgres://", "postgresql://", 1)
+
+app.config['SQLALCHEMY_DATABASE_URI'] = db_url
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 # JWT configuration
