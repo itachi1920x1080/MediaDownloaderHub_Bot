@@ -111,7 +111,7 @@ const startDownload = async () => {
   }
 
   try {
-    const res = await fetch('http://127.0.0.1:5000/api/downloader', {
+    const res = await fetch('https://mediadownloaderhub-bot.onrender.com/api/downloader', {
       method: 'POST',
       headers,
       body: JSON.stringify({

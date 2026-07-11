@@ -53,7 +53,7 @@ onMounted(async () => {
   }
   
   try {
-    const res = await fetch('http://127.0.0.1:5000/api/history/', {
+    const res = await fetch('https://mediadownloaderhub-bot.onrender.com/api/history/', {
       headers: {
         'Authorization': `Bearer ${token}`
       }

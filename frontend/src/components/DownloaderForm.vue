@@ -21,7 +21,7 @@ const handleDownload = async () => {
   files.value = []
 
   try {
-    let API_URL = import.meta.env.VITE_APP_API_URL || ''
+    let API_URL = import.meta.env.VITE_APP_API_URL || 'https://mediadownloaderhub-bot.onrender.com'
     if (API_URL.endsWith('/')) {
       API_URL = API_URL.slice(0, -1)
     }
