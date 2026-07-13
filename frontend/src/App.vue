@@ -14,12 +14,14 @@
     </nav>
 
     <router-view></router-view>
+    <ChatWidget />
   </div>
 </template>
 
 <script setup>
 import { ref, onMounted, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
+import ChatWidget from './components/ChatWidget.vue'
 
 const router = useRouter()
 const route = useRoute()
