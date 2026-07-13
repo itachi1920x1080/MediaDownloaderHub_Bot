@@ -33,8 +33,11 @@ const sendMessage = async () => {
   scrollToBottom();
 
   try {
-    const apiUrl = import.meta.env.VITE_API_URL || 'https://media-downloader-hub-bot-m42q.vercel.app';
-    const response = await fetch(`${apiUrl}/chat/`, {
+    let apiUrl = import.meta.env.VITE_APP_CHAT_API_URL || import.meta.env.VITE_APP_API_URL || import.meta.env.VITE_API_URL || 'https://media-downloader-hub-bot-m42q.vercel.app';
+    if (apiUrl.endsWith('/')) {
+      apiUrl = apiUrl.slice(0, -1);
+    }
+    const response = await fetch(`${apiUrl}/chat`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
