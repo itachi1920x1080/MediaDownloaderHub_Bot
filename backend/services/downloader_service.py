@@ -177,7 +177,9 @@ def download_video(url, state=None, quality='best', format_choice='mp4', is_play
                                         filename = converted
                             return ('audio' if format_choice == 'mp3' else 'video', title, filename)
                 except Exception as e_cookies:
-                    last_error = str(e_cookies)
+                    e_str = str(e_cookies)
+                    if "could not find" not in e_str.lower() and "no such file" not in e_str.lower():
+                        last_error = e_str
                     continue
             
             error_msg = re.sub(r'\x1b\[[0-9;]*[mGK]', '', last_error)
@@ -190,5 +192,7 @@ def download_video(url, state=None, quality='best', format_choice='mp4', is_play
             error_msg = "Please close your browser first! Browser is locking the cookies."
         elif "Failed to decrypt with DPAPI" in error_msg:
             error_msg = "Browser blocked cookie access. Please use Firefox or a cookies.txt extension."
+        elif "sign in to confirm" in error_msg.lower():
+            error_msg = "YouTube requires login to verify you are not a bot. Cookies are needed."
             
         raise Exception(f"Download failed: {error_msg}")
